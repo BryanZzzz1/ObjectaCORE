@@ -3,9 +3,12 @@ package com.project.objectacore.ui.screens
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
@@ -31,11 +34,8 @@ import com.project.objectacore.engine.vision.GeneradorOidLocal
 
 @Composable
 fun InventariadoVista() {
-    // 1. CONTROL DE PESTAÑAS (Clásico vs OID)
     var tabSeleccionada by remember { mutableStateOf(0) }
     val titulosPestañas = listOf("CLÁSICO (QR)", "MARCADOR OID")
-
-    // 2. SELECTOR TÁCTICO DE DESTINO (Web vs Local)
     var destinoWebActivado by remember { mutableStateOf(true) }
 
     Column(
@@ -43,7 +43,7 @@ fun InventariadoVista() {
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // --- CABECERA Y PESTAÑAS ---
+        // CABECERA
         Text(
             text = "FORJA DE INVENTARIO",
             style = MaterialTheme.typography.titleLarge,
@@ -53,6 +53,7 @@ fun InventariadoVista() {
             modifier = Modifier.padding(bottom = 16.dp, top = 8.dp)
         )
 
+        // PESTAÑAS
         TabRow(
             selectedTabIndex = tabSeleccionada,
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -85,7 +86,7 @@ fun InventariadoVista() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // --- SELECTOR DE DESTINO DE CARGA ---
+        // SELECTOR DE DESTINO
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             modifier = Modifier.fillMaxWidth()
@@ -122,26 +123,6 @@ fun InventariadoVista() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // --- ADVERTENCIA DE TELEMETRÍA OID ---
-        if (tabSeleccionada == 1 && !destinoWebActivado) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF4A3E00)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            ) {
-                Row(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "⚠️ Telemetría web inoperativa, pero el Marcador Visual SVG se forjará físicamente en el dispositivo local.",
-                        color = Color(0xFFFFD700),
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-            }
-        }
-
-        // --- ÁREA DE TRABAJO ---
         Box(modifier = Modifier.fillMaxSize()) {
             when (tabSeleccionada) {
                 0 -> FormularioClasico(esDestinoWeb = destinoWebActivado)
@@ -152,24 +133,31 @@ fun InventariadoVista() {
 }
 
 // =========================================================
-// 1. FORMULARIO CLÁSICO (QR)
+// 1. FORMULARIO CLÁSICO (QR) - CON CAMPOS DINÁMICOS
 // =========================================================
 @Composable
 fun FormularioClasico(esDestinoWeb: Boolean) {
     var serialId by remember { mutableStateOf("") }
     var nombre by remember { mutableStateOf("") }
-    var notas by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
+
+    // Estado dinámico de atributos
+    val camposDinamicos = remember { mutableStateListOf("") }
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
 
     fun generarId() {
         val caracteres = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
         serialId = "OBJ-" + (1..4).map { caracteres.random() }.joinToString("")
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+    ) {
         OutlinedTextField(
             value = serialId,
             onValueChange = { serialId = it.uppercase().replace(Regex("[^A-Z0-9-]"), "") },
@@ -193,17 +181,54 @@ fun FormularioClasico(esDestinoWeb: Boolean) {
             singleLine = true
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        OutlinedTextField(
-            value = notas,
-            onValueChange = { notas = it },
-            label = { Text("Telemetría / Notas", fontFamily = FontFamily.Monospace) },
-            modifier = Modifier.fillMaxWidth().height(120.dp),
-            maxLines = 4
+        // SECCIÓN CAMPOS DINÁMICOS
+        Text(
+            text = "ATRIBUTOS PERSONALIZADOS (${camposDinamicos.size}/5)",
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace,
+            color = MaterialTheme.colorScheme.primary,
+            fontSize = 13.sp
         )
+        Spacer(modifier = Modifier.height(8.dp))
 
-        Spacer(modifier = Modifier.height(32.dp))
+        camposDinamicos.forEachIndexed { index, valor ->
+            OutlinedTextField(
+                value = valor,
+                onValueChange = { nuevoValor -> camposDinamicos[index] = nuevoValor },
+                label = { Text("Atributo ${index + 1}", fontFamily = FontFamily.Monospace) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            TextButton(
+                // CORRECCIÓN AQUÍ: removeAt(lastIndex)
+                onClick = { if (camposDinamicos.isNotEmpty()) camposDinamicos.removeAt(camposDinamicos.lastIndex) },
+                enabled = camposDinamicos.isNotEmpty()
+            ) {
+                Icon(Icons.Default.Remove, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Quitar", color = if (camposDinamicos.isNotEmpty()) Color.Red.copy(alpha = 0.8f) else Color.Gray)
+            }
+
+            TextButton(
+                onClick = { if (camposDinamicos.size < 5) camposDinamicos.add("") },
+                enabled = camposDinamicos.size < 5
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Añadir Campo", color = if (camposDinamicos.size < 5) MaterialTheme.colorScheme.primary else Color.Gray)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
 
         Button(
             onClick = {
@@ -211,19 +236,30 @@ fun FormularioClasico(esDestinoWeb: Boolean) {
                     isLoading = true
                     coroutineScope.launch {
                         try {
+                            val listaLimpia = camposDinamicos.filter { it.isNotBlank() }
+
                             if (esDestinoWeb) {
-                                val nuevoObjeto = ObjetoActivo(serial_id = serialId, nombre = nombre, notas = notas.ifBlank { null })
+                                val nuevoObjeto = ObjetoActivo(
+                                    id = serialId,
+                                    nombre = nombre,
+                                    tipoEtiqueta = "QR",
+                                    camposDinamicos = listaLimpia
+                                )
                                 SupabaseManager.registrarObjeto(nuevoObjeto)
                                 Toast.makeText(context, "Activo Sincronizado en Nube", Toast.LENGTH_SHORT).show()
                             } else {
                                 val baseDatos = AppDatabase.obtenerBaseDatos(context)
                                 val dao = baseDatos.inventarioDao()
-                                dao.guardarObjeto(ObjetoLocal(serial_id = serialId, nombre = nombre))
+                                dao.guardarObjeto(ObjetoLocal(
+                                    serial_id = serialId,
+                                    nombre = nombre,
+                                    campos_dinamicos = listaLimpia
+                                ))
                                 Toast.makeText(context, "Activo Guardado en SQLite Local", Toast.LENGTH_SHORT).show()
                             }
                             serialId = ""
                             nombre = ""
-                            notas = ""
+                            camposDinamicos.clear()
                         } catch (e: Exception) {
                             Toast.makeText(context, "Fallo: ${e.message}", Toast.LENGTH_LONG).show()
                         } finally {
@@ -248,26 +284,32 @@ fun FormularioClasico(esDestinoWeb: Boolean) {
 }
 
 // =========================================================
-// 2. FORMULARIO OID (Marcadores Matemáticos)
+// 2. FORMULARIO OID (Marcadores Matemáticos) - CON CAMPOS DINÁMICOS
 // =========================================================
 @Composable
 fun FormularioOid(esDestinoWeb: Boolean) {
     var serialId by remember { mutableStateOf("") }
     var nombre by remember { mutableStateOf("") }
-    var notas by remember { mutableStateOf("") }
-
     var isLoading by remember { mutableStateOf(false) }
     var codigoGenerado by remember { mutableStateOf<Int?>(null) }
 
+    // Estado dinámico de atributos
+    val camposDinamicos = remember { mutableStateListOf("") }
+
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
 
     fun generarId() {
         val caracteres = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
         serialId = "OID-" + (1..4).map { caracteres.random() }.joinToString("")
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+    ) {
         OutlinedTextField(
             value = serialId,
             onValueChange = { serialId = it.uppercase().replace(Regex("[^A-Z0-9-]"), "") },
@@ -291,15 +333,52 @@ fun FormularioOid(esDestinoWeb: Boolean) {
             singleLine = true
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        OutlinedTextField(
-            value = notas,
-            onValueChange = { notas = it },
-            label = { Text("Telemetría / Notas", fontFamily = FontFamily.Monospace) },
-            modifier = Modifier.fillMaxWidth().height(100.dp),
-            maxLines = 3
+        // SECCIÓN CAMPOS DINÁMICOS OID
+        Text(
+            text = "ATRIBUTOS PERSONALIZADOS (${camposDinamicos.size}/5)",
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace,
+            color = Color(0xFF8B5CF6),
+            fontSize = 13.sp
         )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        camposDinamicos.forEachIndexed { index, valor ->
+            OutlinedTextField(
+                value = valor,
+                onValueChange = { nuevoValor -> camposDinamicos[index] = nuevoValor },
+                label = { Text("Atributo ${index + 1}", fontFamily = FontFamily.Monospace) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            TextButton(
+                // CORRECCIÓN AQUÍ: removeAt(lastIndex)
+                onClick = { if (camposDinamicos.isNotEmpty()) camposDinamicos.removeAt(camposDinamicos.lastIndex) },
+                enabled = camposDinamicos.isNotEmpty()
+            ) {
+                Icon(Icons.Default.Remove, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Quitar", color = if (camposDinamicos.isNotEmpty()) Color.Red.copy(alpha = 0.8f) else Color.Gray)
+            }
+
+            TextButton(
+                onClick = { if (camposDinamicos.size < 5) camposDinamicos.add("") },
+                enabled = camposDinamicos.size < 5
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Añadir Campo", color = if (camposDinamicos.size < 5) Color(0xFF8B5CF6) else Color.Gray)
+            }
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -310,32 +389,34 @@ fun FormularioOid(esDestinoWeb: Boolean) {
                     coroutineScope.launch {
                         try {
                             val codigoOidNumerico = Random.nextInt(1, 33554431)
+                            val listaLimpia = camposDinamicos.filter { it.isNotBlank() }
 
                             if (esDestinoWeb) {
-                                // MODO NUBE
-                                val nuevoOid = ObjetoActivoOid(serial_id = serialId, codigo_numerico = codigoOidNumerico, nombre = nombre, notas = notas.ifBlank { null })
+                                val nuevoOid = ObjetoActivoOid(
+                                    serial_id = serialId,
+                                    codigo_numerico = codigoOidNumerico,
+                                    nombre = nombre,
+                                    notas = if (listaLimpia.isNotEmpty()) listaLimpia.joinToString(" • ") else null
+                                )
                                 SupabaseManager.registrarObjetoOid(nuevoOid)
-                                val svgCreado = SupabaseManager.forjarMarcadorSvg(codigoOidNumerico, serialId)
+                                SupabaseManager.forjarMarcadorSvg(codigoOidNumerico, serialId)
                                 SupabaseManager.registrarTelemetria(codigoOidNumerico, "ACTIVO_FORJADO")
 
-                                if (svgCreado) Toast.makeText(context, "OID Web Forjado", Toast.LENGTH_LONG).show()
-                                else Toast.makeText(context, "Fallo generación de SVG Web", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, "OID Web Forjado con Atributos", Toast.LENGTH_LONG).show()
                             } else {
-                                // MODO LOCAL - Inyectando Motor de Forja Local
                                 val baseDatos = AppDatabase.obtenerBaseDatos(context)
                                 val dao = baseDatos.inventarioDao()
 
-                                // 1. Tejer SVG local
                                 val svgString = GeneradorOidLocal.generarOidSvg(codigoOidNumerico.toLong())
                                 val rutaFisica = GeneradorOidLocal.guardarSvgEnDispositivo(context, serialId, svgString)
 
-                                // 2. Guardar en SQLite con la ruta
                                 dao.guardarObjetoOid(
                                     ObjetoOidLocal(
                                         serial_id = serialId,
                                         codigo_numerico = codigoOidNumerico,
                                         nombre = nombre,
-                                        ruta_archivo_local = rutaFisica ?: "" // Guardamos la ruta
+                                        ruta_archivo_local = rutaFisica ?: "",
+                                        campos_dinamicos = listaLimpia
                                     )
                                 )
                                 Toast.makeText(context, "OID Forjado en Bóveda Local", Toast.LENGTH_LONG).show()
@@ -344,7 +425,7 @@ fun FormularioOid(esDestinoWeb: Boolean) {
                             codigoGenerado = codigoOidNumerico
                             serialId = ""
                             nombre = ""
-                            notas = ""
+                            camposDinamicos.clear()
                         } catch (e: Exception) {
                             Toast.makeText(context, "Error en forja: ${e.message}", Toast.LENGTH_LONG).show()
                         } finally {

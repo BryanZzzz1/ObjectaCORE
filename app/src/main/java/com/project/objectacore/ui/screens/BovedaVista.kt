@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.QrCodeScanner // ✅ IMPORTACIÓN DEL ÍCONO AGREGADA
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
@@ -30,6 +31,7 @@ import com.project.objectacore.data.remote.SupabaseManager
 import com.project.objectacore.domain.models.ObjetoActivo
 import com.project.objectacore.domain.models.ObjetoActivoOid
 import com.project.objectacore.engine.vision.GeneradorOidLocal
+import com.project.objectacore.engine.vision.GeneradorQrLocal
 
 @Composable
 fun BovedaVista() {
@@ -143,9 +145,9 @@ fun BovedaVista() {
 }
 
 // --- COMPONENTES VISUALES ---
-
 @Composable
 fun TarjetaClasicaLocal(objeto: ObjetoLocal) {
+    val context = LocalContext.current
     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -153,6 +155,25 @@ fun TarjetaClasicaLocal(objeto: ObjetoLocal) {
                 Badge(containerColor = Color.LightGray) { Text("LOCAL", color = Color.Black, fontSize = 10.sp) }
             }
             Text(text = "Desig: ${objeto.nombre}", style = MaterialTheme.typography.bodyLarge)
+
+            if (objeto.campos_dinamicos.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = objeto.campos_dinamicos.joinToString(separator = " • "), style = MaterialTheme.typography.bodySmall, color = Color.DarkGray)
+            }
+
+            // 👇 BOTÓN ACTIVO Y CONECTADO
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                IconButton(
+                    onClick = {
+                        // Llama a nuestro nuevo motor
+                        GeneradorQrLocal.exportarQrADescargas(context, objeto.serial_id)
+                    },
+                    modifier = Modifier.background(MaterialTheme.colorScheme.primary, RoundedCornerShape(50))
+                ) {
+                    Icon(imageVector = Icons.Default.QrCodeScanner, contentDescription = "Descargar QR", tint = Color.White)
+                }
+            }
         }
     }
 }
@@ -192,17 +213,33 @@ fun TarjetaOidLocal(oid: ObjetoOidLocal) {
 
 @Composable
 fun TarjetaClasicaNube(objeto: ObjetoActivo) {
+    val context = LocalContext.current
     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9))) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(text = objeto.serial_id, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace, color = Color(0xFF2E7D32))
+                Text(text = objeto.id, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace, color = Color(0xFF2E7D32))
                 Badge(containerColor = Color(0xFF4CAF50)) { Text("NUBE WEB", color = Color.White, fontSize = 10.sp) }
             }
             Text(text = "Desig: ${objeto.nombre}", style = MaterialTheme.typography.bodyLarge, color = Color.Black)
-            // Si tu ObjetoActivo tiene "notas", descomenta esto:
-            // if (!objeto.notas.isNullOrBlank()) {
-            //     Text(text = "Notas: ${objeto.notas}", style = MaterialTheme.typography.bodySmall, color = Color.DarkGray)
-            // }
+
+            if (objeto.camposDinamicos.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = objeto.camposDinamicos.joinToString(separator = " • "), style = MaterialTheme.typography.bodySmall, color = Color.DarkGray)
+            }
+
+            // 👇 BOTÓN ACTIVO Y CONECTADO
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                IconButton(
+                    onClick = {
+                        // Llama a nuestro nuevo motor
+                        GeneradorQrLocal.exportarQrADescargas(context, objeto.id)
+                    },
+                    modifier = Modifier.background(Color(0xFF4CAF50), RoundedCornerShape(50))
+                ) {
+                    Icon(imageVector = Icons.Default.QrCodeScanner, contentDescription = "Descargar QR", tint = Color.White)
+                }
+            }
         }
     }
 }

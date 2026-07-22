@@ -93,11 +93,13 @@ fun RegistrarVista() {
                             // MEJORA: Generamos el ID matemático de 25 bits para el OID (1 a 33 Millones)
                             val codigoOidNumerico = Random.nextInt(1, 33554431)
 
-                            // Empaquetamos los datos en nuestro modelo, sumando el nuevo código numérico
+                            // CORRECCIÓN APLICADA: Empaquetamos las notas en camposDinamicos y usamos id/tipoEtiqueta
+                            val listaDinamica = if (notas.isNotBlank()) listOf(notas) else emptyList()
                             val nuevoObjeto = ObjetoActivo(
-                                serial_id = serialId,
+                                id = serialId,
                                 nombre = nombre,
-                                notas = notas.ifBlank { null },
+                                tipoEtiqueta = "GENERAL", // Asignamos un tipo genérico por defecto
+                                camposDinamicos = listaDinamica
                             )
 
                             // Disparamos la conexión a Supabase

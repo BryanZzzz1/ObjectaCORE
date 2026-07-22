@@ -159,7 +159,7 @@ fun RadarOptico() {
                                         if (idDetectado != null) {
                                             buscandoEnBD = true
                                             coroutineScope.launch {
-                                                // 1. INTENTAR PRIMERO EN SUPABASE (Para asegurar la telemetría)
+                                                // 1. INTENTAR PRIMERO EN SUPABASE
                                                 var datosOid: ObjetoActivoOid? = null
                                                 try {
                                                     datosOid = SupabaseManager.obtenerObjetoOidPorCodigo(idDetectado)
@@ -169,8 +169,6 @@ fun RadarOptico() {
 
                                                 if (datosOid != null) {
                                                     Log.i("RadarOptico", "✅ OID Encontrado en Supabase. Enviando Telemetría.")
-
-                                                    // 🔗 TELEMETRÍA (Solo se dispara si viene de la nube)
                                                     val payloadEscaneo = mapOf(
                                                         "dispositivo_escaner" to android.os.Build.MODEL,
                                                         "motor_vision" to "OpenCV Telar 6x6",
@@ -178,7 +176,7 @@ fun RadarOptico() {
                                                     )
                                                     SupabaseManager.registrarTelemetria(idDetectado, "ESCANEADO_EN_TERRENO", payloadEscaneo)
                                                 } else {
-                                                    // 2. RESPALDO LOCAL: Si falla la nube, busca en Room SQLite
+                                                    // 2. RESPALDO LOCAL
                                                     Log.w("RadarOptico", "❌ OID no encontrado en Nube. Intentando Local...")
                                                     try {
                                                         val dao = AppDatabase.obtenerBaseDatos(context).inventarioDao()
@@ -196,11 +194,21 @@ fun RadarOptico() {
                                                     }
                                                 }
 
-                                                // 3. RESOLUCIÓN FINAL (Muestra la bóveda)
+                                                // 3. RESOLUCIÓN FINAL CORREGIDA
                                                 if (datosOid != null) {
                                                     estadoSistema = "¡OBJETO ENCONTRADO!"
                                                     codigoDetectado = idDetectado.toString()
-                                                    objetoCompleto = ObjetoActivo(datosOid.serial_id, datosOid.nombre, datosOid.notas)
+
+                                                    // Empaquetamos las notas antiguas en la nueva lista de camposDinamicos
+                                                    val listaDinamica = if (!datosOid.notas.isNullOrBlank()) listOf(datosOid.notas!!) else emptyList()
+
+                                                    objetoCompleto = ObjetoActivo(
+                                                        id = datosOid.serial_id,
+                                                        nombre = datosOid.nombre,
+                                                        tipoEtiqueta = "OID",
+                                                        camposDinamicos = listaDinamica
+                                                    )
+
                                                     congelarEscaneo = true
                                                 } else {
                                                     estadoSistema = "Rastreando área..."
@@ -293,7 +301,7 @@ fun RadarOptico() {
             )
         }
 
-        // Bóveda Inferior (Aparece SOLO cuando encuentra un resultado exitoso)
+        // Bóveda Inferior CORREGIDA (Aparece SOLO cuando encuentra un resultado exitoso)
         if (congelarEscaneo && objetoCompleto != null) {
             Box(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 32.dp, start = 16.dp, end = 16.dp).fillMaxWidth().background(Color(0xEE0F172A), RoundedCornerShape(16.dp)).border(1.dp, Color.Green, RoundedCornerShape(16.dp)))
             {
@@ -313,9 +321,16 @@ fun RadarOptico() {
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(text = objetoCompleto!!.nombre, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Black)
-                    if (!objetoCompleto!!.notas.isNullOrBlank()) {
+
+                    // Extraemos los datos de la nueva lista dinámica en lugar de "notas"
+                    if (objetoCompleto!!.camposDinamicos.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = "INFORMACIÓN: ${objetoCompleto!!.notas}", color = Color.LightGray, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+                        Text(
+                            text = "INFORMACIÓN: ${objetoCompleto!!.camposDinamicos.joinToString(" • ")}",
+                            color = Color.LightGray,
+                            fontSize = 14.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
                     }
                 }
             }
