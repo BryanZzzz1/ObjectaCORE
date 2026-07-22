@@ -7,6 +7,8 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.OptIn // <-- IMPORTANTE: Importación para el OptIn
+import androidx.camera.core.ExperimentalGetImage // <-- IMPORTANTE: Importación de CameraX
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -26,6 +28,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 
+// Importaciones de tus vistas en sus nuevas carpetas
+import com.project.objectacore.ui.screens.RadarOptico
+import com.project.objectacore.ui.screens.InventariadoVista
+import com.project.objectacore.ui.screens.BovedaVista
+import com.project.objectacore.ui.screens.ConfiguracionVista
+
+@OptIn(ExperimentalGetImage::class) // <-- SOLUCIÓN AL ERROR AQUÍ
 class MainActivity : ComponentActivity() {
 
     // 1. SOLICITUD NATIVA DE PERMISOS DE CÁMARA
@@ -79,6 +88,7 @@ class MainActivity : ComponentActivity() {
 }
 
 // 3. ESTRUCTURA DE NAVEGACIÓN ACTUALIZADA (4 MÓDULOS)
+@OptIn(ExperimentalGetImage::class) // <-- SOLUCIÓN AL ERROR AQUÍ TAMBIÉN POR SI ACASO
 @Composable
 fun ObjectaCoreApp() {
     val navController = rememberNavController()
